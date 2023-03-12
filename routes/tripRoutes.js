@@ -1,4 +1,5 @@
 const express = require('express');
+const authController = require('./../controllers/authController');
 
 const {
     getAllTrips,
@@ -12,7 +13,7 @@ const {
 const router = express.Router();
 
 router.route('/')
-    .get(getAllTrips)
+    .get(authController.protect, getAllTrips)
     .post(addTrip);
 
 router.route('/:id')

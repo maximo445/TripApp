@@ -10,6 +10,19 @@ const handleDuplicateIdDB = (error) => {
     return new AppError(message, 400);
 }
 
+const handleValidationInputDB = (error) => {
+    const message = error.message;
+    return new AppError(message, 400);
+}
+
+const handleJWTError = () => {
+    return new AppError('Invalid Token. Login Again :(', 401);
+}
+
+const handleJWTExpirationError = () => {
+    return new AppError('Token Expired. Login Again :(', 401);
+}
+
 const sendDevErr = (err, res) => {
     res.status(err.statusCode).json({
         status: err.status,
@@ -49,12 +62,25 @@ module.exports = (err, req, res, next) => {
 
         let error = JSON.parse(JSON.stringify(err));
 
+        // cuased when entering wrong data types
         if (error.name === 'CastError') {
             error = handleProductionCastError(error);
         }
 
         if (error.code === 11000) {
             error = handleDuplicateIdDB(error);
+        }
+
+        if (error.name === 'ValidationError') {
+            error = handleValidationInputDB(error);
+        }
+
+        if (error.name === 'JsonWebTokenError') {
+            error = handleJWTError();
+        }
+
+        if (error.name === 'TokenExpiredError') {
+            error = handleJWTExpirationError();
         }
 
         sendProdErr(error, res);

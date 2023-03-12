@@ -12,11 +12,13 @@ const tripSchema = new mongoose.Schema({
     },
     pickUp: {
         type: String,
-        require: [true, 'A trip must have a pick up address']
+        require: [true, 'A trip must have a pick up address'],
+        maxLength: 15
     },
     dropOff: {
         type: String,
-        require: [true, 'A trip must have a drop off adress']
+        require: [true, 'A trip must have a drop off adress'],
+        maxLength: 15
     },
     numOfChildren: {
         type: Number,

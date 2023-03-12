@@ -5,6 +5,8 @@ const AppError = require('./../utilis/appError');
 
 exports.getAllTrips = errorCatcher(async (req, res, next) => {
 
+    console.log(`Expirtation: ${process.env.JWT_EXPIRES_IN}`)
+
     // --Form Query-- //
     const apiFeatures = new ApiFeatures(Trip.find(), req.query).filter();
 

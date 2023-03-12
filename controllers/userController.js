@@ -1,4 +1,4 @@
-const Trip = require("../models/tripModel")
+const User = require("../models/userModel")
 
 exports.getAllUsers = (req, res) => {
     res.status(500).json({
@@ -9,7 +9,7 @@ exports.getAllUsers = (req, res) => {
 
 exports.addUser = (req, res) => {
     res.status(500).json({
-        status: 'faliure',
+        status: 'failure',
         message: 'route not yet implemented'
     })
 }

@@ -1,6 +1,13 @@
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 
+// listen for all uncaught exceptios in the application
+
+process.on('uncaughtException', err => {
+    console.log(err.name, err.message);
+    process.exit();
+});
+
 dotenv.config({
     path: './config.env'
 });
@@ -21,6 +28,18 @@ mongoose.connect(DB, {
 
 const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
     console.log(`Running on port ${port}`);
+});
+
+// listens to all unhandled promise rejections in the application 
+
+process.on('unhandledRejection', err => {
+    console.log(err.name, err.message);
+
+    // waits for sever to close all conections and the exits the application
+
+    server.close(() => {
+        process.exit();
+    });
 });
