@@ -1,10 +1,12 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const {
     promisify
 } = require('util');
 const User = require('./../models/userModel');
 const errorCatcher = require('./../utilis/errorCatcher');
 const AppError = require('./../utilis/appError');
+const emaiJS = require('./../utilis/email');
 
 const tokenSignIn = (id) => {
     return jwt.sign({
@@ -21,6 +23,7 @@ exports.signup = errorCatcher(async (req, res, next) => {
         email: req.body.email,
         password: req.body.password,
         passwordConfirm: req.body.passwordConfirm,
+        role: req.body.role
     });
 
     const token = await tokenSignIn(newUser._id);
@@ -63,10 +66,7 @@ exports.login = errorCatcher(async (req, res, next) => {
 
     res.status(201).json({
         status: 'success',
-        token,
-        data: {
-            user: user
-        }
+        token
     });
 });
 
@@ -103,5 +103,126 @@ exports.protect = errorCatcher(async (req, res, next) => {
     req.user = currentUser;
 
     next();
+
+});
+
+exports.restrictTo = (...roles) => {
+    return (req, res, next) => {
+
+        //check if user role is in ...roles
+        if (!roles.includes(req.user.role)) {
+            return next(new AppError('You are not athorized to delete trips', 403))
+        }
+
+        next();
+
+    }
+}
+
+exports.forgotPassword = errorCatcher(async (req, res, next) => {
+
+    const currentUser = await User.findOne({
+        email: req.body.email
+    });
+
+    if (!currentUser) {
+        return next(new AppError('Please enter a valid email', 401));
+    }
+
+    const resetToken = currentUser.getResetToken();
+    console.log(`email: ${currentUser.email}`);
+    await currentUser.save({
+        validateBeforeSave: false
+    });
+
+    try {
+
+        const resetURL = `${req.protocol}://${req.get('host')}/api/v1/resetPassword/${resetToken}`;
+        await emaiJS.sendEmail({
+            email: currentUser.email,
+            subject: 'Password Reset Instructions',
+            message: `Click on the following url to reset password\n\n${resetURL}`
+        });
+
+        res.status(200).json({
+            message: "Password reset instructions sent to email"
+        });
+
+    } catch (err) {
+        currentUser.passwordResetToken = undefined;
+        currentUser.passwordResetExpires = undefined;
+        currentUser.save({
+            validateBeforeSave: false
+        })
+        console.log(err);
+        return next(new AppError('Something went wrong sending email. Please try again later :(', 500));
+    }
+
+});
+
+exports.resetPassword = errorCatcher(async (req, res, next) => {
+
+    // 1) get user based on the token    
+
+    const pwHashToken = crypto.createHash('sha256').update(req.params.resetToken).digest('hex');
+
+    const currentUser = await User.findOne({
+        passwordResetToken: pwHashToken,
+        passwordResetExpires: {
+            $gt: Date.now()
+        }
+    });
+
+    if (!currentUser) {
+        return next(new AppError('Token invalid or Token Expired', 401));
+    }
+
+    currentUser.password = req.body.password;
+    currentUser.passwordConfirm = req.body.passwordConfirm;
+    currentUser.passwordResetToken = undefined;
+    currentUser.passwordResetExpires = undefined;
+    await currentUser.save();
+
+    const token = tokenSignIn(currentUser._id);
+
+    res.status(201).json({
+        status: 'success',
+        token
+    });
+
+});
+
+exports.updatePassword = errorCatcher(async (req, res, next) => {
+
+    //get user from collection
+    const submitedPassword = req.body.password;
+    const newPassword = req.body.newPassword;
+    const newPasswordConfirm = req.body.newPasswordConfirm;
+
+    const currentUser = await User.findById(req.user.id).select('+password');
+
+    if (!currentUser) {
+        return next(new AppError('Invalid Email', 401));
+    }
+
+    //check that submited password is correct
+    const passwordIsCorrect = await currentUser.correctPassword(submitedPassword, currentUser.password);
+
+    if (!passwordIsCorrect) {
+        return next(new AppError('Invalid Password', 401));
+    }
+
+    //update password
+    currentUser.password = newPassword;
+    currentUser.passwordConfirm = newPasswordConfirm;
+    await currentUser.save();
+
+    //login user
+    const token = tokenSignIn(currentUser._id);
+
+    res.status(201).json({
+        status: 'success',
+        token
+    });
 
 });

@@ -19,7 +19,7 @@ router.route('/')
 router.route('/:id')
     .get(getTrip)
     .patch(updateTrip)
-    .delete(deleteTrip);
+    .delete(authController.protect, authController.restrictTo('case-manager'), deleteTrip);
 
 router.route('/trip-stats').get(getTripStats);
 

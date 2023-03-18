@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const AppError = require('../utilis/appError');
 
 const userSchema = mongoose.Schema({
@@ -32,7 +33,7 @@ const userSchema = mongoose.Schema({
             validator: function () {
                 return this.password === this.passwordConfirm;
             },
-            message: 'Passwords are not the same'
+            message: 'Passwords are not the same :('
         },
         select: false
     },
@@ -40,17 +41,21 @@ const userSchema = mongoose.Schema({
         type: String,
         require: [true, 'Please confirm password']
     },
-    createdAt: {
-        type: Date,
-        default: new Date()
+    passwordChangedAt: {
+        type: Date
     },
     role: {
         type: String,
-        enum: ['case-manager', 'transport-coordinator', 'driver'],
-        default: 'case-manager'
+        required: [true, 'Please assign a role'],
+        enum: ['case-manager', 'transport-coordinator', 'driver']
+    },
+    passwordResetToken: {
+        type: String
+    },
+    passwordResetExpires: {
+        type: Date
     }
 });
-
 
 // before saving the aquired data to the data base
 // this midelware allows us to act on it
@@ -60,7 +65,13 @@ userSchema.pre('save', async function (next) {
     this.password = await bcrypt.hash(this.password, 8);
     this.passwordConfirm = undefined;
     next();
-})
+});
+
+userSchema.pre('save', async function (next) {
+    if (!this.isModified('password') || this.isNew) return next();
+    this.passwordChangedAt = Date.now() - 1000;
+    next();
+});
 
 userSchema.methods.correctPassword = async function (PasswordToConfirm, password) {
     return await bcrypt.compare(PasswordToConfirm, password);
@@ -68,8 +79,8 @@ userSchema.methods.correctPassword = async function (PasswordToConfirm, password
 
 userSchema.methods.passwordChangedAfter = function (initiateTimeStamp) {
 
-    if (this.createdAt) {
-        const timeOfPaswordCreation = parseInt(this.createdAt.getTime(), 10);
+    if (this.passwordChangedAt) {
+        const timeOfPaswordCreation = parseInt(this.passwordChangedAt.getTime(), 10);
         if (timeOfPaswordCreation < initiateTimeStamp) {
             return true;
         }
@@ -77,6 +88,14 @@ userSchema.methods.passwordChangedAfter = function (initiateTimeStamp) {
 
     return false;
 
+}
+
+userSchema.methods.getResetToken = function () {
+    const restToken = crypto.randomBytes(32).toString('hex');
+    const encryptedRestToken = crypto.createHash('sha256').update(restToken).digest('hex');
+    this.passwordResetToken = encryptedRestToken;
+    this.passwordResetExpires = Date.now() + (1000 * 60 * 10);
+    return restToken;
 }
 
 const User = mongoose.model('User', userSchema);

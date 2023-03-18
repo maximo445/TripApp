@@ -5,8 +5,6 @@ const AppError = require('./../utilis/appError');
 
 exports.getAllTrips = errorCatcher(async (req, res, next) => {
 
-    console.log(`Expirtation: ${process.env.JWT_EXPIRES_IN}`)
-
     // --Form Query-- //
     const apiFeatures = new ApiFeatures(Trip.find(), req.query).filter();
 
@@ -38,6 +36,8 @@ exports.addTrip = errorCatcher(async (req, res, next) => {
 exports.getTrip = errorCatcher(async (req, res, next) => {
 
     const tour = await Trip.findById(req.params.id);
+
+    console.log(tour);
 
     if (!tour) {
         return next(new AppError('Invalid ID. No trip has that id', 404));
