@@ -54,7 +54,16 @@ const userSchema = mongoose.Schema({
     },
     passwordResetExpires: {
         type: Date
-    }
+    },
+    active: {
+        type: Boolean,
+        default: true,
+        select: false
+    },
+    trips: [{
+        type: mongoose.Schema.ObjectId,
+        ref: 'Trip'
+    }]
 });
 
 // before saving the aquired data to the data base
@@ -70,6 +79,20 @@ userSchema.pre('save', async function (next) {
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password') || this.isNew) return next();
     this.passwordChangedAt = Date.now() - 1000;
+    next();
+});
+
+userSchema.pre(/^find/, function (next) {
+    this.find({
+        active: {
+            $ne: false
+        }
+    });
+    next();
+});
+
+userSchema.pre(/^find/, function (next) {
+    this.populate('trips');
     next();
 });
 

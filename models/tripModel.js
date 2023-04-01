@@ -1,31 +1,66 @@
 const mongoose = require('mongoose');
+const {
+    isEmail
+} = require('validator');
+
 
 const tripSchema = new mongoose.Schema({
-    children: {
+    driverEmail: {
         type: String,
-        require: [true, 'children field can not be empty'],
-        unique: true
+        lowercase: true,
+        trim: true,
+        require: true,
+        default: 'unassigned@frc.org',
+        validate: {
+            validator: function (email) {
+                const emailRegex = /^\S+@\S+\.\S+$/;
+                return emailRegex.test(email);
+            },
+            message: 'Invalid email address'
+        }
+    },
+    children: {
+        type: [String],
+        require: [true, 'children field can not be empty']
     },
     days: {
-        type: [String],
+        type: [Number],
         require: true
     },
-    pickUp: {
-        type: String,
-        require: [true, 'A trip must have a pick up address'],
-        maxLength: 15
-    },
-    dropOff: {
-        type: String,
-        require: [true, 'A trip must have a drop off adress'],
-        maxLength: 15
-    },
+    pickUp: [{
+        type: {
+            type: String,
+            default: 'Point',
+            enum: ['Point']
+        },
+        coordinates: [Number],
+        address: String,
+        description: String
+    }],
+    dropOff: [{
+        type: {
+            type: String,
+            default: 'Point',
+            enum: ['Point']
+        },
+        coordinates: [Number],
+        address: String,
+        description: String
+    }],
     numOfChildren: {
         type: Number,
         default: 1
+    },
+    status: {
+        type: String,
+        default: 'pending',
+        enum: ['pending', 'approved', 'rejected']
+    },
+    createdBy: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User'
     }
-})
-
+});
 
 const Trip = mongoose.model('Trip', tripSchema);
 

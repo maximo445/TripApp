@@ -16,6 +16,34 @@ const tokenSignIn = (id) => {
     });
 }
 
+const createSendToken = (user, statusCode, res) => {
+
+    const token = tokenSignIn(user._id);
+
+    const cookieOptions = {
+        expires: new Date(
+            Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+        ),
+        httpOnly: true
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+        cookieOptions.secure = true;
+    }
+
+    res.cookie('jwt', token, cookieOptions);
+
+    user.password = undefined;
+
+    res.status(statusCode).json({
+        status: 'success',
+        token,
+        data: {
+            user
+        }
+    });
+}
+
 exports.signup = errorCatcher(async (req, res, next) => {
 
     const newUser = await User.create({
@@ -26,16 +54,16 @@ exports.signup = errorCatcher(async (req, res, next) => {
         role: req.body.role
     });
 
-    const token = await tokenSignIn(newUser._id);
+    createSendToken(newUser, 201, res);
+    // const token = await tokenSignIn(newUser._id);
 
-    res.status(201).json({
-        status: 'success',
-        token,
-        data: {
-            user: newUser
-        }
-    });
-
+    // res.status(201).json({
+    //     status: 'success',
+    //     token,
+    //     data: {
+    //         user: newUser
+    //     }
+    // });
 });
 
 exports.login = errorCatcher(async (req, res, next) => {
@@ -62,12 +90,13 @@ exports.login = errorCatcher(async (req, res, next) => {
         return next(new AppError('Wrong email or password', 401));
     }
 
-    const token = tokenSignIn(user._id);
+    createSendToken(user, 201, res);
+    // const token = tokenSignIn(user._id);
 
-    res.status(201).json({
-        status: 'success',
-        token
-    });
+    // res.status(201).json({
+    //     status: 'success',
+    //     token
+    // });
 });
 
 exports.protect = errorCatcher(async (req, res, next) => {
@@ -111,7 +140,7 @@ exports.restrictTo = (...roles) => {
 
         //check if user role is in ...roles
         if (!roles.includes(req.user.role)) {
-            return next(new AppError('You are not athorized to delete trips', 403))
+            return next(new AppError('You are not athorized to change this trip', 403))
         }
 
         next();
@@ -183,12 +212,13 @@ exports.resetPassword = errorCatcher(async (req, res, next) => {
     currentUser.passwordResetExpires = undefined;
     await currentUser.save();
 
-    const token = tokenSignIn(currentUser._id);
+    createSendToken(currentUser, 201, res);
+    // const token = tokenSignIn(currentUser._id);
 
-    res.status(201).json({
-        status: 'success',
-        token
-    });
+    // res.status(201).json({
+    //     status: 'success',
+    //     token
+    // });
 
 });
 
@@ -199,17 +229,18 @@ exports.updatePassword = errorCatcher(async (req, res, next) => {
     const newPassword = req.body.newPassword;
     const newPasswordConfirm = req.body.newPasswordConfirm;
 
+    //get currently loggeg user
     const currentUser = await User.findById(req.user.id).select('+password');
 
     if (!currentUser) {
-        return next(new AppError('Invalid Email', 401));
+        return next(new AppError('Invalid email or password', 401));
     }
 
     //check that submited password is correct
     const passwordIsCorrect = await currentUser.correctPassword(submitedPassword, currentUser.password);
 
     if (!passwordIsCorrect) {
-        return next(new AppError('Invalid Password', 401));
+        return next(new AppError('Invalid email or password', 401));
     }
 
     //update password
@@ -218,11 +249,13 @@ exports.updatePassword = errorCatcher(async (req, res, next) => {
     await currentUser.save();
 
     //login user
-    const token = tokenSignIn(currentUser._id);
+    createSendToken(currentUser, 201, res);
 
-    res.status(201).json({
-        status: 'success',
-        token
-    });
+    // const token = tokenSignIn(currentUser._id);
+
+    // res.status(201).json({
+    //     status: 'success',
+    //     token
+    // });
 
 });
