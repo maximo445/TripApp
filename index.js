@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
@@ -10,6 +11,7 @@ const AppError = require('./utilis/appError');
 const errorController = require('./controllers/errorController');
 const tripRouter = require('./routes/tripRoutes');
 const userRouter = require('./routes/userRoutes');
+const viewRouter = require('./routes/viewRoutes');
 
 // if (process.env.NODE_ENV !== 'production') {
 //     require('longjohn');
@@ -17,10 +19,22 @@ const userRouter = require('./routes/userRoutes');
 
 const app = express();
 
+//server side rendering template
 app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, 'views'));
+//static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 //Set security HTTP headers
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            'script-src': ["'self'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"]
+        }
+    }
+}));
 
 //Limit requests from same api 
 const limiter = rateLimit({
@@ -55,8 +69,8 @@ app.use(xss());
 
 app.use(hpp());
 
-//middle ware functions to mange the routes 
-
+//routes
+app.use('/', viewRouter);
 app.use('/api/v1/tours', tripRouter);
 app.use('/api/v1/users', userRouter);
 
