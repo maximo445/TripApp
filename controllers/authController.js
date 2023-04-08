@@ -106,6 +106,8 @@ exports.protect = errorCatcher(async (req, res, next) => {
     // check if token exist
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookie.jwt) {
+        token = req.cookies.jwt
     }
 
     if (!token) {
@@ -133,6 +135,36 @@ exports.protect = errorCatcher(async (req, res, next) => {
 
     next();
 
+});
+
+exports.isLoggedIn = errorCatcher(async (req, res, next) => {
+
+    // check if token exist
+    if (req.cookie.jwt) {
+
+        // check that token works (not tampered or expired)
+        const decoded = await promisify(jwt.verify)(req.cookies.jwt, process.env.JWT_SECRET);
+
+        //check if user still exist
+        const currentUser = await User.findById(decoded.id).select('+password');
+
+        console.log(currentUser);
+
+        if (!currentUser) {
+            return next();
+        }
+
+        //check if password changed
+        if (currentUser.passwordChangedAfter(decoded.iat)) {
+            return next();
+        }
+
+        res.locals.user = currentUser;
+
+        return next();
+    }
+
+    next();
 });
 
 exports.restrictTo = (...roles) => {

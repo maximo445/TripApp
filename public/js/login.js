@@ -4,17 +4,24 @@ const login = async (email, password) => {
 
         const res = await axios({
             method: 'POST',
-            url: 'http://127.0.0.1:3000/api/v1/users/login',
+            url: 'http://127.0.0.1:8080/api/v1/users/login',
             data: {
                 email,
                 password
             }
         });
 
+        // if (res.data.status === 'success') {
+        //     alert('You are logged in!');
+        //     window.setTimeout(() => {
+        //         location.assign('/')
+        //     }, 1500)
+        // }
+
         console.log(res);
 
     } catch (err) {
-        console.log(err);
+        console.log(err.response.data.message);
     }
 }
 
